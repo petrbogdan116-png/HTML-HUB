@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>KOFEVARKA'S STUDIO | Hub Omega + Upload</title>
+    <style>
+        :root { 
+            --bg: #0d1117; --card: #161b22; --accent: #58a6ff; 
+            --green: #238636; --gold: #d29922; --text: #c9d1d9;
+        }
+        body { margin: 0; background: var(--bg); color: var(--text); font-family: 'Segoe UI', sans-serif; overflow: hidden; }
+        
+        /* Авторизация */
+        #auth-overlay { position: fixed; inset: 0; background: #000; z-index: 9999; display: flex; align-items: center; justify-content: center; }
+        .auth-box { background: var(--card); padding: 30px; border-radius: 8px; border: 1px solid #30363d; text-align: center; width: 300px; }
+
+        /* Основная сетка */
+        #app { display: flex; width: 100vw; height: 100vh; }
+        .sidebar { width: 280px; background: var(--card); border-right: 1px solid #30363d; display: flex; flex-direction: column; }
+        .main { flex-grow: 1; padding: 30px; overflow-y: auto; }
+
+        /* Навигация */
+        .nav-item { padding: 15px 20px; cursor: pointer; transition: 0.2s; border-left: 3px solid transparent; }
+        .nav-item:hover, .nav-item.active { background: #21262d; border-left-color: var(--accent); }
+
+        /* Карточки */
+        .glass-card { background: #0d1117; border: 1px solid #30363d; border-radius: 6px; padding: 15px; margin-bottom: 15px; }
+        .btn { background: var(--green); color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.3s; }
+        .btn:hover { opacity: 0.8; transform: scale(1.02); }
+        .btn-blue { background: var(--accent); }
+
+        /* Профиль */
+        .profile-header { padding: 20px; text-align: center; border-bottom: 1px solid #30363d; }
+        .avatar { width: 80px; height: 80px; margin: 0 auto 10px; border-radius: 50%; border: 2px solid var(--accent); background-size: cover; background-position: center; background-color: #333; }
+
+        /* Drag and Drop Zone */
+        #drop-zone { border: 2px dashed var(--accent); padding: 30px; text-align: center; margin-bottom: 15px; cursor: pointer; border-radius: 8px; transition: 0.3s; }
+        #drop-zone:hover { background: rgba(88, 166, 255, 0.1); }
+
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 1000; }
+        .modal-content { background: var(--card); padding: 25px; border-radius: 8px; width: 450px; border: 1px solid var(--accent); }
+
+        input { background: #0d1117; border: 1px solid #30363d; color: white; padding: 10px; width: 100%; box-sizing: border-box; margin-bottom: 10px; border-radius: 4px; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<div id="auth-overlay">
+    <div class="auth-box">
+        <h2>HUB LOGIN</h2>
+        <input type="text" id="a-user" placeholder="Логин">
+        <input type="password" id="a-pass" placeholder="Пароль">
+        <button class="btn" onclick="login()">ВОЙТИ / СОЗДАТЬ</button>
+    </div>
+</div>
+
+<div id="profile-modal" class="modal" onclick="this.style.display='none'">
+    <div class="modal-content" onclick="event.stopPropagation()">
+        <h2 id="view-name">Профиль</h2>
+        <div id="view-avatar" style="width:100px; height:100px; margin:0 auto; border-radius:50%; background-size:cover; border:2px solid var(--gold);"></div>
+        <p id="view-id" style="text-align:center; color:var(--accent);"></p>
+        <h3>Достижения:</h3>
+        <div id="view-achs" style="max-height: 200px; overflow-y: auto;"></div>
+        <button class="btn" onclick="document.getElementById('profile-modal').style.display='none'">ЗАКРЫТЬ</button>
+    </div>
+</div>
+
+<div id="app" class="hidden">
+    <div class="sidebar">
+        <div class="profile-header">
+            <div id="u-avatar" class="avatar"></div>
+            <input type="file" id="ava-file" class="hidden" accept="image/*" onchange="changeAvatar(this)">
+            <button class="btn-blue" style="font-size:10px; padding:2px 5px;" onclick="document.getElementById('ava-file').click()">СМЕНИТЬ АВАТАР</button>
+            <h3 id="u-name-label" style="margin:10px 0 0;">Name</h3>
+            <div id="u-id-label" style="font-size:11px; color:var(--accent);">ID: 000000</div>
+            <div style="color:var(--gold); font-size:14px; margin-top:5px;">🪙 <span id="u-pts">0</span> PTS</div>
+            <button class="btn" style="margin-top:10px; font-size:11px;" onclick="openMyProfile()">МОЙ ПРОФИЛЬ</button>
+        </div>
+        <div class="nav-item active" onclick="tab('store')">МАГАЗИН</div>
+        <div class="nav-item" onclick="tab('lib')">БИБЛИОТЕКА</div>
+        <div class="nav-item" onclick="tab('items')">МАГАЗИН ПРЕДМЕТОВ</div>
+        <div class="nav-item" onclick="tab('studio')">СТУДИЯ (UPLOAD)</div>
+    </div>
+
+    <div class="main">
+        <div id="t-store">
+            <h1>Магазин</h1>
+            <div id="store-render"></div>
+        </div>
+
+        <div id="t-lib" class="hidden">
+            <h1>Библиотека</h1>
+            <div id="lib-render"></div>
+        </div>
+
+        <div id="t-items" class="hidden">
+            <h1>Предметы</h1>
+            <div class="glass-card">
+                <h3>Золотая рамка</h3>
+                <p>Цена: 500 PTS</p>
+                <button class="btn-blue" onclick="buyItem('gold_border', 500)">КУПИТЬ</button>
+            </div>
+        </div>
+
+        <div id="t-studio" class="hidden">
+            <h1>Создать проект</h1>
+            <div class="glass-card">
+                <input type="text" id="p-name" placeholder="Название игры">
+                <div id="drop-zone">
+                    <span id="drop-text">📁 Перетащи .EXE или .HTML сюда или нажми</span>
+                    <input type="file" id="file-input" class="hidden">
+                </div>
+                <div id="upload-status" style="color:var(--green); font-size:12px; margin-bottom:10px;"></div>
+                <h3>Ачивки:</h3>
+                <div id="ach-builder"></div>
+                <button class="btn-blue" onclick="addAchField()">+ Добавить ачивку</button>
+                <button class="btn" style="margin-top:20px;" onclick="publish()">ВЫЛОЖИТЬ ИГРУ</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let db = JSON.parse(localStorage.getItem('hub_omega_v11')) || { users: {}, games: [] };
+    let cur = null;
+    let lastUploadedPath = "";
+
+    const save = () => localStorage.setItem('hub_omega_v11', JSON.stringify(db));
+
+    // Авторизация
+    window.login = () => {
+        const u = document.getElementById('a-user').value.trim();
+        const p = document.getElementById('a-pass').value.trim();
+        if(!u || !p) return;
+        if(!db.users[u]) {
+            db.users[u] = { name: u, pass: p, id: Math.floor(100000+Math.random()*899999).toString(), avatar: '', pts: 100, myGames: [], achs: [], items: [] };
+        } else if(db.users[u].pass !== p) return alert("Wrong pass");
+        cur = db.users[u];
+        save();
+        document.getElementById('auth-overlay').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        render();
+    };
+
+    // Навигация
+    window.tab = (id) => {
+        document.querySelectorAll('.main > div').forEach(d => d.classList.add('hidden'));
+        document.getElementById('t-' + id).classList.remove('hidden');
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        event.currentTarget.classList.add('active');
+    };
+
+    // Загрузка файлов
+    const dz = document.getElementById('drop-zone');
+    const fi = document.getElementById('file-input');
+    dz.onclick = () => fi.click();
+    fi.onchange = (e) => handleFiles(e.target.files);
+    dz.ondragover = (e) => { e.preventDefault(); dz.style.borderColor = "var(--green)"; };
+    dz.ondragleave = () => { dz.style.borderColor = "var(--accent)"; };
+    dz.ondrop = (e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); };
+
+    function handleFiles(files) {
+        if(!files[0]) return;
+        const file = files[0];
+        document.getElementById('drop-text').innerText = "Загрузка: " + file.name;
+        fetch('/upload', { method: 'POST', headers: { 'x-file-name': encodeURIComponent(file.name) }, body: file })
+        .then(res => res.json()).then(data => {
+            lastUploadedPath = data.path;
+            document.getElementById('upload-status').innerText = "✅ Файл готов!";
+            document.getElementById('drop-text').innerText = "Файл успешно добавлен";
+        });
+    }
+
+    window.addAchField = () => {
+        const d = document.createElement('div');
+        d.className = 'ach-row';
+        d.innerHTML = `<input class="an" placeholder="Имя"> <input class="ad" placeholder="Описание">`;
+        document.getElementById('ach-builder').appendChild(d);
+    };
+
+    window.publish = () => {
+        const title = document.getElementById('p-name').value;
+        if(!title || !lastUploadedPath) return alert("Заполни всё!");
+        const achs = [];
+        document.querySelectorAll('.ach-row').forEach(r => {
+            achs.push({ id: Math.random().toString(36).substr(2,5), name: r.querySelector('.an').value, desc: r.querySelector('.ad').value });
+        });
+        db.games.push({ id: Date.now(), title, path: lastUploadedPath, achievements: achs });
+        save();
+        alert("Игра в магазине!");
+        location.reload();
+    };
+
+    window.buyGame = (id) => {
+        if(!cur.myGames.includes(id)) { cur.myGames.push(id); cur.pts += 50; save(); render(); }
+    };
+
+    window.unlock = (aid) => {
+        if(!cur.achs.includes(aid)) { cur.achs.push(aid); cur.pts += 100; save(); render(); }
+    };
+
+    window.buyItem = (name, price) => {
+        if(cur.pts >= price && !cur.items.includes(name)) {
+            cur.pts -= price; cur.items.push(name); save(); render();
+        }
+    };
+
+    window.changeAvatar = (input) => {
+        const reader = new FileReader();
+        reader.onload = (e) => { cur.avatar = e.target.result; save(); render(); };
+        reader.readAsDataURL(input.files[0]);
+    };
+
+    window.openMyProfile = () => {
+        document.getElementById('view-name').innerText = cur.name;
+        document.getElementById('view-id').innerText = "ID: " + cur.id;
+        document.getElementById('view-avatar').style.backgroundImage = `url(${cur.avatar})`;
+        document.getElementById('view-achs').innerHTML = cur.achs.length > 0 ? "Получено ачивок: " + cur.achs.length : "Нет ачивок";
+        document.getElementById('profile-modal').style.display = 'flex';
+    };
+
+    function render() {
+        if(!cur) return;
+        document.getElementById('u-name-label').innerText = cur.name;
+        document.getElementById('u-id-label').innerText = "ID: " + cur.id;
+        document.getElementById('u-pts').innerText = cur.pts;
+        document.getElementById('u-avatar').style.backgroundImage = `url(${cur.avatar})`;
+        if(cur.items.includes('gold_border')) document.getElementById('u-avatar').style.border = "3px solid var(--gold)";
+
+        document.getElementById('store-render').innerHTML = db.games.map(g => `
+            <div class="glass-card" style="display:flex; justify-content:space-between;">
+                <b>${g.title}</b>
+                <button class="btn-blue" style="width:100px;" onclick="buyGame(${g.id})">${cur.myGames.includes(g.id) ? 'ЕСТЬ' : 'КУПИТЬ'}</button>
+            </div>
+        `).join('');
+
+        document.getElementById('lib-render').innerHTML = cur.myGames.map(gid => {
+            const g = db.games.find(x => x.id === gid);
+            return `
+                <div class="glass-card">
+                    <h3>${g.title}</h3>
+                    <button class="btn-blue" onclick="window.open('${g.path}')">ИГРАТЬ</button>
+                    ${g.achievements.map(a => `
+                        <div class="glass-card" style="margin-top:10px; display:flex; justify-content:space-between;">
+                            <span>${a.name} - ${a.desc}</span>
+                            <button class="btn" style="width:80px;" onclick="unlock('${a.id}')" ${cur.achs.includes(a.id) ? 'disabled' : ''}>${cur.achs.includes(a.id) ? '🏆' : 'OK'}</button>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }).join('');
+    }
+</script>
+</body>
+</html>
